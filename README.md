@@ -60,8 +60,9 @@ A REST API created using the Flask micro-framework for the smartphone recommende
      Now, create <b>two files</b> inside this folder:
      * 1. __init__.py - To mark this folder as a Python package.
      * 2. <b>config</b>.py - A file that stores project sensitive information such as SECRET-KEY, API keys, etc.<br>
-     <b>Sample contents of config.py</b>:
      ```bash
+     #Sample contents for instance/config.py
+     
      DEBUG = True
      DATABASE_URI = "mongodb://localhost:27017/<database_name>
      DATABASE_NAME = <database_name>
@@ -132,6 +133,8 @@ A REST API created using the Flask micro-framework for the smartphone recommende
   <b> By default, the app is set to run on http://localhost:5000</b><br>
       If you wish to change it to the IP of your machine, go to the <b>run.py</b> file and change its content as follows:
   ```bash
+  #run.py
+  
   from phonemate import app
   if __name__ == "__main__":
       app.run(host="0.0.0.0", port=5000)
