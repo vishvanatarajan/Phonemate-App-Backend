@@ -102,19 +102,24 @@ A REST API created using the Flask micro-framework for the smartphone recommende
          ```
          
 ## Running the Server
-  In the project directory, open the terminal and type,
-  ```bash
-  python run.py
-  ```
-  Then, start your mongod server, if it is not already started.<br>
-  To check status of mongod server in Ubuntu 16.04, type the following command in the terminal:
-  ```bash
-  sudo systemctl status mongodb
-  ```
-  In case the server is <b>stopped</b>, start it is using the following command:
-  ```bash
-  sudo systemctl start mongodb
-  ```
+ * 1. Activate virtual environment:
+        In the project directory, open the terminal and type,
+        ```bash
+        source venv/bin/activate
+        ```
+ * 2. Start your mongod server, if it is not already started.<br>
+        To check status of mongod server in Ubuntu 16.04, type the following command in the terminal:
+        ```bash
+        sudo systemctl status mongodb
+        ```
+        In case the server is <b>stopped</b>, start it is using the following command:
+        ```bash
+           sudo systemctl start mongodb
+        ```
+  * 3. Run the project.<br>
+       ```bash
+       python run.py
+       ```
   
  ## Built With
   * [Flask](http://flask.pocoo.org/) -  A microframework for Python based on Werkzeug and Jinja 2.
@@ -127,7 +132,7 @@ A REST API created using the Flask micro-framework for the smartphone recommende
   * 1. If database errors are encountered, ensure that the <b>DATABASE_URI</b> in the [instance/config.py] is correct.
   * 2. Format of Authorization token to be sent is - <b>"Bearer <JWT_encoded_token>"</b>.<br>
     If this format is not followed, JWT Signature errors will be encountered.
-  * 3. Whenever, <b>HTTP request</b> is sent, ensure that it <b>always </b> has a <b>content-type: application/json</b>.<br>
+  * 3. Whenever a <b>HTTP request</b> is sent, ensure that it <b>always </b> has a <b>content-type: application/json</b>.<br>
   
   ## Note
   <b> By default, the app is set to run on http://localhost:5000</b><br>
@@ -136,6 +141,7 @@ A REST API created using the Flask micro-framework for the smartphone recommende
   #run.py
   
   from phonemate import app
+  
   if __name__ == "__main__":
       app.run(host="0.0.0.0", port=5000)
   ```
