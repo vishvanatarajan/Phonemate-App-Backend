@@ -114,7 +114,7 @@ A REST API created using the Flask micro-framework for the smartphone recommende
         ```
         In case the server is <b>stopped</b>, start it is using the following command:
         ```bash
-           sudo systemctl start mongodb
+        sudo systemctl start mongodb
         ```
   * 3. Run the project.<br>
        ```bash
