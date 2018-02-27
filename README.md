@@ -60,7 +60,7 @@ A REST API created using the Flask micro-framework for the smartphone recommende
      Now, create <b>two files</b> inside this folder:
      * 1. __init__.py - To mark this folder as a Python package.
      * 2. <b>config</b>.py - A file that stores project sensitive information such as SECRET-KEY, API keys, etc.<br>
-     ```bash
+     ```python
      #Sample contents for instance/config.py
      
      DEBUG = True
