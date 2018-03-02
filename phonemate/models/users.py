@@ -16,7 +16,7 @@ class Users(Document):
 
     def clean(self):
         self.email = str(self.email)
-        self.password = str(bcrypt.generate_password_hash(self.password, BCRYPT_LOG_ROUNDS).decode('utf8'))
+        self.password = bcrypt.generate_password_hash(self.password, BCRYPT_LOG_ROUNDS).decode('utf-8')
         self.first_name = str(self.first_name)
         self.last_name = str(self.last_name)
         self.registered_on = datetime.datetime.now()
@@ -28,14 +28,16 @@ class Users(Document):
         return True
 
     def validate_user_by_pwd(self, password):
-        if bcrypt.check_password_hash(self.password, password):
-            return True
-        return False
+        return bcrypt.check_password_hash(self.password, password)
+
+    def update_user_pwd(self, new_password):
+        new_password = bcrypt.generate_password_hash(new_password, BCRYPT_LOG_ROUNDS).decode('utf-8')
+        self.update(password=new_password)
 
     def encode_auth_token(self, user_id):
         try:
             payload = {
-                'exp': datetime.datetime.utcnow() + datetime.timedelta(days=1),
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(days=365),
                 'iat': datetime.datetime.utcnow(),
                 'sub': str(user_id)
             }
@@ -90,3 +92,7 @@ class Users(Document):
         else:
             user = Users.objects(id=user_id).first()
         return user
+
+    @staticmethod
+    def get_user_from_id(user_id):
+        return Users.objects(id=user_id).first()

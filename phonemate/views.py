@@ -1,11 +1,19 @@
-from flask import jsonify, request, make_response
+import os
 import time
+import datetime
+import json
+import pandas as pd
+from random import choice
+from string import ascii_uppercase
+from flask import jsonify, request, make_response, render_template
+from flask_mail import Mail, Message
 
 #Custom imports
-from phonemate import app, db
+from phonemate import app, db, mail, pyMongoDB
 from phonemate.models.users import Users
 from phonemate.models.tokens import BlacklistToken
-from instance.config import DEVELOPER_EMAIL, DEVELOPER_PASSWORD
+from phonemate.models.resets import ResetPassword
+from instance.config import MAIL_USERNAME, MAIL_PASSWORD, SERVER_URL
 
 @app.route("/")
 def index():
@@ -126,10 +134,61 @@ def userLogout():
             }
             return make_response(jsonify(responseObject)), 500
 
+@app.route("/users/forgot/password", methods=['POST'])
+def userForgotPassword():
+    data = request.get_json()
+    user = Users.get_user_from_email(data['email'])
+    if user is None:
+        responseObject = {
+            'status': 'failure', 
+            'message': 'User does not exist. Please register first'
+        }
+        return make_response(jsonify(responseObject)), 403
+    else:
+        url = str(SERVER_URL) + str("/users/password/") +''.join(choice(ascii_uppercase) for _ in range(12)) + str(user.id)
+        reset = ResetPassword(user_id=user.id, reset_link=url)
+        reset.save()
+        msg = Message("Password reset request for your PhoneMate account", sender="services@phonemate.com", recipients=[user.email])
+        msg.html = render_template('fpwd-otp-email.html', action_name=user.first_name, action_url=str(url))
+        mail.send(msg)
+        responseObject = {
+            'status': 'success',
+            'message': 'An email with the steps to reset the password has been sent to the registered email id.',
+            'request_id': str(reset.id)
+        }
+        return make_response(jsonify(responseObject)), 200
+
+@app.route("/users/password/<link>", methods=['GET'])
+def resetPasswordLink(link):
+    url = str(SERVER_URL) + str("/users/password/") + str(link)
+    reset_request = ResetPassword.get_request_from_url(url)
+    if reset_request is not None:
+        if reset_request.expires_at > datetime.datetime.now():
+            return render_template('password-reset.html', action_id=reset_request.user_id, action_result="false"), 200
+        else:
+            return render_template('fpwd-404-not-found.html'), 404
+    else:
+        responseObject = {
+            'status': 'failure',
+            'message': 'Invalid URL'
+        }
+        return make_response(jsonify(responseObject)), 400
+
+@app.route("/users/password/reset", methods=['PUT'])
+def resetPassword():
+    user_id = request.form['user_id']
+    new_password = request.form['password']
+    user = Users.get_user_from_id(user_id)
+    if user is None:
+        return render_template('password-reset.html', action_result="true", action_msg="Could not reset password. Please try again from the app."), 401
+    else:
+        user.update_user_pwd(new_password)
+        return render_template('password-reset.html', action_result="true", action_msg="Password has been reset successfully!"), 200
+    
 @app.route("/users/tokens/blacklist", methods=['POST'])
 def blacklistAllUserTokens():
     data = request.get_json()
-    if data['email']==DEVELOPER_EMAIL and data['password']==DEVELOPER_PASSWORD:
+    if data['email'] == MAIL_USERNAME and data['password'] == MAIL_PASSWORD:
         BlacklistToken.blacklistAllTokens()
         responseObject = {
             'status': 'success',
@@ -142,3 +201,48 @@ def blacklistAllUserTokens():
             'message': 'Authentication Failure'
         }
         return make_response(jsonify(responseObject)), 403
+
+#Run the scrape.py file in the web-scarping folder before calling this function
+@app.route("/phones/scraped/insert", methods=['POST'])
+def insertIntoDBFromCSV():
+    data = request.get_json()
+    if data['email'] == MAIL_USERNAME and data['password'] == MAIL_PASSWORD:
+        phones_collection = pyMongoDB.phones
+        directory_path = os.path.dirname(__file__)
+        csv_file_path = os.path.join(directory_path, 'static/phone-data.csv')
+        csv_data = pd.read_csv(csv_file_path)
+        csv_data.drop(csv_data.columns[[0]], axis=1, inplace=True)
+        for i in range(len(csv_data['Cost'])):
+            try:
+                csv_data['Cost'][i] = csv_data['Cost'][i][1:]
+            except Exception as exception:
+                pass
+        output_file_path = os.path.join(directory_path, 'static/phones.csv')
+        csv_data.to_csv(output_file_path)
+        phones_csv = pd.read_csv(output_file_path)
+        json_data = json.loads(phones_csv.to_json(orient='records'))
+        phones_collection.remove()
+        phones_collection.insert(json_data)
+        responseObject = {
+            'status': 'success',
+            'message': 'Phones imported successfully from CSV file.'
+        }
+        return make_response(jsonify(responseObject)), 200
+    else:
+        responseObject = {
+            'status': 'failure',
+            'message': 'Authentication Failure'
+        }
+        return make_response(jsonify(responseObject)), 403
+
+@app.route("/phones/featured", methods=['GET'])
+def featuredPhones():
+    phones = ["iPhone X", "Pixel 2", "Redmi Note 5", "Samsung Galaxy S8", "Nokia 8"]
+    result = []
+    for phone in phones:
+        regex = ".*"+phone+".*"
+        result.append(str(pyMongoDB.phones.find_one( { "Name": { "$regex": regex } } )))
+    responseObject = [{
+        'phones': result
+    }]
+    return make_response(jsonify(responseObject)), 200
