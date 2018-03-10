@@ -1,6 +1,6 @@
 import datetime
 import jwt
-from mongoengine import Document, BooleanField, IntField, EmailField, StringField, DateTimeField, ValidationError
+from mongoengine import Document, BooleanField, EmailField, StringField, DateTimeField, ValidationError
 
 #Custom imports
 from phonemate import bcrypt, app
@@ -8,17 +8,16 @@ from phonemate.models.tokens import BlacklistToken
 from instance.config import BCRYPT_LOG_ROUNDS
 
 class Users(Document):
+    _id = StringField()
     email = EmailField(required = True, allow_utf8_user=True)
     password = StringField(min_length = 6, required = True)
-    first_name = StringField(min_length = 3)
-    last_name = StringField(min_length = 2)
+    first_name = StringField()
+    last_name = StringField()
     registered_on = DateTimeField(null=False, required=True)
+    google_sign_in = BooleanField(required=True, default=False)
 
     def clean(self):
-        self.email = str(self.email)
         self.password = bcrypt.generate_password_hash(self.password, BCRYPT_LOG_ROUNDS).decode('utf-8')
-        self.first_name = str(self.first_name)
-        self.last_name = str(self.last_name)
         self.registered_on = datetime.datetime.now()
 
     def exists(self):

@@ -1,4 +1,5 @@
 import os
+import uuid
 import time
 import datetime
 import json
@@ -7,13 +8,15 @@ from random import choice
 from string import ascii_uppercase
 from flask import jsonify, request, make_response, render_template
 from flask_mail import Mail, Message
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 #Custom imports
 from phonemate import app, db, mail, pyMongoDB
 from phonemate.models.users import Users
 from phonemate.models.tokens import BlacklistToken
 from phonemate.models.resets import ResetPassword
-from instance.config import MAIL_USERNAME, MAIL_PASSWORD, SERVER_URL
+from instance.config import MAIL_USERNAME, MAIL_PASSWORD, SERVER_URL, GOOGLE_CLIENT_ID
 
 @app.route("/")
 def index():
@@ -22,7 +25,7 @@ def index():
 @app.route("/users/register", methods=['POST'])
 def registerNewUser():
     data = request.get_json()
-    newUser = Users(email=data['email'], password=data['password'], first_name=data['first_name'], last_name=data['last_name'])
+    newUser = Users(email=data['email'], password=data['password'], first_name=data['first_name'], last_name=data['last_name'],                                google_sign_in=False)
     if newUser.exists() == True:
         responseObject = {
                 'status': 'failure',
@@ -80,6 +83,64 @@ def authenticateUser():
                 'message': 'Incorrect username or password'
             }
             return make_response(jsonify(responseObject)), 404
+
+@app.route("/users/login/google", methods=['POST'])
+def userGoogleSignIn():
+    user_token = request.headers['Authorization']
+    data = request.get_json()
+    try:
+        id_info = id_token.verify_oauth2_token(user_token, requests.Request(), GOOGLE_CLIENT_ID)
+        if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+            raise ValueError('Wrong issuer')
+        user_id = id_info['sub']
+        new_user = Users(_id=user_id, email=data['email'], password=uuid.uuid4().hex, first_name=data['first_name'],
+                         last_name=data['last_name'], google_sign_in=True)
+        new_user.save()
+        auth_token = new_user.encode_auth_token(user_id)
+        if auth_token:
+            responseObject = {
+                'status': 'success',
+                'message': 'Login successful',
+                'token': 'Bearer ' + auth_token.decode()
+            }
+            return make_response(jsonify(responseObject)), 200
+    except ValueError:
+        print("Invalid Token encountered during Google Sign in")
+        responseObject = {
+            'status': 'failure',
+            'message': 'Invalid client ID. Please use a valid Google account to login'
+        }
+        return make_response(jsonify(responseObject)), 403
+
+@app.route("/users/google/logout", methods=['POST'])
+def removeGoogleUser():
+    user_token = request.headers['Authorization']
+    try:
+        id_info = id_token.verify_oauth2_token(user_token, requests.Request(), GOOGLE_CLIENT_ID)
+        if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+            raise ValueError('Wrong issuer')
+        user_id = id_info['sub']
+        user = Users.objects(_id=user_id).first()
+        if isinstance(user, Users):
+            Users.objects(_id=user_id).delete()
+            responseObject = {
+                'status': 'success',
+                'message': 'Google account has been removed from our app server'
+            }
+            return make_response(jsonify(responseObject)), 200
+        else:
+            responseObject = {
+                'status': 'failure',
+                'message': 'Google account has not been linked with the PhoneMate app'
+            }
+            return make_response(jsonify(responseObject)), 401
+    except ValueError:
+        print("Invalid Token encountered during Google Sign out")
+        responseObject = {
+            'status': 'failure',
+            'message': 'Invalid client ID'
+        }
+        return make_response(jsonify(responseObject)), 403
 
 @app.route("/users/profile", methods=['GET'])
 def getUserProfile():
@@ -145,7 +206,7 @@ def userForgotPassword():
         }
         return make_response(jsonify(responseObject)), 403
     else:
-        url = str(SERVER_URL) + str("/users/password/") +''.join(choice(ascii_uppercase) for _ in range(12)) + str(user.id)
+        url = str(SERVER_URL) + str("/users/password/") + ''.join(choice(ascii_uppercase) for _ in range(12)) + str(user.id)
         reset = ResetPassword(user_id=user.id, reset_link=url)
         reset.save()
         msg = Message("Password reset request for your PhoneMate account", sender="services@phonemate.com", recipients=[user.email])
@@ -241,8 +302,5 @@ def featuredPhones():
     result = []
     for phone in phones:
         regex = ".*"+phone+".*"
-        result.append(str(pyMongoDB.phones.find_one( { "Name": { "$regex": regex } } )))
-    responseObject = [{
-        'phones': result
-    }]
-    return make_response(jsonify(responseObject)), 200
+        result.append(pyMongoDB.phones.find_one( { "Name": { "$regex": regex } }, { '_id': False } ))
+    return make_response(jsonify(result)), 200
