@@ -8,7 +8,6 @@ from phonemate.models.tokens import BlacklistToken
 from instance.config import BCRYPT_LOG_ROUNDS
 
 class Users(Document):
-    _id = StringField()
     email = EmailField(required = True, allow_utf8_user=True)
     password = StringField(min_length = 6, required = True)
     first_name = StringField()
