@@ -95,11 +95,10 @@ def userGoogleSignIn():
         id_info = id_token.verify_oauth2_token(user_token, requests.Request(), GOOGLE_CLIENT_ID)
         if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
             raise ValueError('Wrong issuer')
-        user_id = id_info['sub']
         new_user = Users(email=data['email'], password=uuid.uuid4().hex, first_name=data['first_name'],
                          last_name=data['last_name'], google_sign_in=True)
         new_user.save()
-        auth_token = new_user.encode_auth_token(user_id)
+        auth_token = new_user.encode_auth_token(new_user.id)
         if auth_token:
             responseObject = {
                 'status': 'success',
@@ -115,7 +114,7 @@ def userGoogleSignIn():
         }
         return make_response(jsonify(responseObject)), 200
 
-@app.route("/users/profile", methods=['GET'])
+@app.route("/users/profile", methods=['POST'])
 def getUserProfile():
     user = Users.get_user_from_token(request.headers['Authorization'])
     if isinstance(user, Users):
@@ -125,7 +124,10 @@ def getUserProfile():
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
-            'registered_on': user.registered_on
+            'city': user.city,
+            'phone': user.phone,
+            'registered_on': user.registered_on,
+            'message': 'User profile sent successfully'
         }
         return make_response(jsonify(responseObject)), 200
     else:
@@ -135,7 +137,24 @@ def getUserProfile():
         }
         return make_response(jsonify(responseObject)), 200
 
-@app.route("/users/forgot/password", methods=['POST'])
+@app.route("/users/profile/update", methods=['PUT'])
+def updateUserProfile():
+    user = Users.get_user_from_token(request.headers['Authorization'])
+    if isinstance(user, Users):
+        data = request.get_json()
+        user.update(set__first_name = str(data['first_name']), set__last_name = str(data['last_name']), set__city = str(data['city']),                     set__phone = str(data['phone']))
+        responseObject = {
+            'status': 'success',
+            'message': 'Profile has been updated successfully'
+        }
+    else:
+        responseObject = {
+            'status': 'failure',
+            'message': 'Invalid token. Please log in again'
+        }
+    return make_response(jsonify(responseObject)), 200
+
+@app.route("/users/forgot/password", methods=['PUT'])
 def userForgotPassword():
     data = request.get_json()
     user = Users.get_user_from_email(data['email'])
@@ -246,6 +265,8 @@ def recommendedPhones():
             regex = ".*Android.*"
         elif os == 2:
             regex = ".*iOS.*"
+        elif os == 3:
+            regex = ".*iOS.*|.*Android.*"
         else:
             regex = "^((?!android|ios).)*$"
         if storage == 0:
@@ -308,7 +329,7 @@ def recommendedPhones():
                     for phone in collection.find({'Cost': {'$lte': price}, 'Primary Camera': {'$gte': 12}, 'Battery Capacity': {'$gte': 3000}, 'Operating System': {'$regex':regex, '$options':'i'}}, {'_id':0}):
                         result.append(phone)
             else:
-                for phone in collection.find({'Cost': {'$lte': price}, 'Primary Camera': {'$gte': 12}}, {'_id':0}).sort('Primary Camera', -1).limit(10):
+                for phone in collection.find({'Cost': {'$lte': price}, 'Operating System': {'$regex': regex, '$options':'i'}}, {'_id':0}).sort('Primary Camera', -1).limit(10):
                     result.append(phone)
         elif busage == 1:
             for phone in collection.find({'Cost': {'$lte':price}, 'Operating System': {'$regex':regex, '$options':'i'}, 'Primary Camera': {'$gte':min_camera, '$lte':max_camera}, 'Battery Capacity': {'$gte':min_battery, '$lte':max_battery}}, {'_id':0}).limit(10):
@@ -390,8 +411,7 @@ def recommendedPhones():
                     phone['Weight'] = str("-")
                 else:
                     phone['Weight'] = str(phone['Weight']) + " g"
-        return make_response(jsonify(result)), 200
-    
+        return make_response(jsonify(result)), 200    
 
 #Run the scrape.py file in the web-scarping folder before calling this function
 @app.route("/phones/insert", methods=['POST'])

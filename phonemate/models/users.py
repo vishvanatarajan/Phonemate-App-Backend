@@ -12,11 +12,15 @@ class Users(Document):
     password = StringField(min_length = 6, required = True)
     first_name = StringField()
     last_name = StringField()
+    city = StringField()
+    phone = StringField()
     registered_on = DateTimeField(null=False, required=True)
     google_sign_in = BooleanField(required=True, default=False)
 
     def clean(self):
         self.password = bcrypt.generate_password_hash(self.password, BCRYPT_LOG_ROUNDS).decode('utf-8')
+        self.city = ""
+        self.phone = ""
         self.registered_on = datetime.datetime.now()
 
     def exists(self):
