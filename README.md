@@ -146,6 +146,6 @@ A REST API created using the Flask micro-framework for the smartphone recommende
       app.run(host="0.0.0.0", port=5000)
   ```
   
-  ## Link to corresponding Phonemate android application
+  ## Link to Phonemate android application
   The source code for the Phonemate android application can be found at the following link:<br>
   [Link to the Phonemate android application](https://github.com/5abarinath/phonemate)
