@@ -147,5 +147,5 @@ A REST API created using the Flask micro-framework for the smartphone recommende
   ```
   
   ## Link to corresponding Phonemate android application
-  The source code for the Phonemate android application can be found at the following link:
+  The source code for the Phonemate android application can be found at the following link:<br>
   [Link to the Phonemate android application](https://github.com/5abarinath/phonemate)
