@@ -145,3 +145,7 @@ A REST API created using the Flask micro-framework for the smartphone recommende
   if __name__ == "__main__":
       app.run(host="0.0.0.0", port=5000)
   ```
+  
+  ## Link to corresponding Phonemate android application
+  The source code for the Phonemate android application can be found at the following link:
+  [Link to the Phonemate android application](https://github.com/5abarinath/phonemate)
