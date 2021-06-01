@@ -43,6 +43,6 @@ requests-oauthlib==0.8.0
 rsa==3.4.2
 six==1.11.0
 uritemplate==3.0.0
-urllib3==1.22
+urllib3==1.26.5
 Werkzeug==0.14.1
 WTForms==2.1
